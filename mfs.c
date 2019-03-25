@@ -50,7 +50,7 @@ struct DirectoryEntry dir[16];
 
 int LBAToOffset(int32_t sector)
 {
-	return (( sector - 2 ) * 
+	return (( sector - 2 ) * BPB_BytsPerSec) + (BPB_BytsPerSec * BPB_RsvdSecCnt) + (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec);
 }	
 
 void open_file(char* filename)
@@ -164,7 +164,7 @@ int main()
 				printf("BPB_SecPerClus: %4x  || %4d\n", BPB_SecPerClus, BPB_SecPerClus);
 				printf("BPB_RsvdSecCnt: %4x  || %4d\n", BPB_RsvdSecCnt, BPB_RsvdSecCnt);
 				printf("BPB_NumFATs: %7x  || %4d\n", BPB_NumFATs, BPB_NumFATs);
-				printf("BPB_FATSz32: %7x  || %4d\n", BPB_FATSz32, BPB_FATSz32);
+				printf("BPB_FATSz32: %7x  || %4d\n\n", BPB_FATSz32, BPB_FATSz32);
 			}	
 		}
 		free( working_root );
