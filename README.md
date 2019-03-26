@@ -7,7 +7,7 @@ User space shell that interprets a FAT32 file system image.
 * Opens FAT32 image.
 * Navigate the FAT32 image.
 * Closes FAT32 image.
-* Prints out file system information such as:
+* Prints out boot information such as:
 	* BPB\_BytsPerSec
 	* BPB\_SecPerClus
 	* BPB\_RsvdSecCnt
