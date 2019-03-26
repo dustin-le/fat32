@@ -35,6 +35,9 @@ int32_t RootDirSectors = 0; // ((BPB_RootEntCnt * 32) + (BPB_BytsPerSec – 1)) 
 int32_t FirstDataSector = 0; // BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors
 int32_t FirstSectorofCluster = 0; // ((N – 2) * BPB_SecPerClus) + FirstDataSector, where N is any valid data cluster number.
 
+int root; // Address of root directory.
+int check; // Checks if currently in root directory (0 for no, 1 for yes).
+
 struct __attribute__((__packed__)) DirectoryEntry {
 	char DIR_Name[11];
 	uint8_t DIR_Attr;
@@ -86,14 +89,15 @@ void open_file(char* filename)
 		fseek(fp, 71, SEEK_SET); // Skip to BS_VolLab
 		fread(&BS_VolLab, 11, 1, fp);
 
-		int root = (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec) + (BPB_RsvdSecCnt * BPB_BytsPerSec);
+		root = (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec) + (BPB_RsvdSecCnt * BPB_BytsPerSec); 
+		check = 1;
 		fseek(fp, root, SEEK_SET);
 		fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
 	}
 }
 
 // ls implementation. Prints out file information read from open_file function. 
-void show_contents()
+void show_current()
 {
 	int i;
 	for (i = 0; i < 16; i++)
@@ -109,6 +113,20 @@ void show_contents()
 		}	
 	}	
 }
+
+void show_parent()
+{
+	int i;
+	if (check == 1)
+	{
+		printf("Error: Currently in root directory.\n");
+	}
+	
+	else
+	{
+		// IMPLEMENT
+	}	
+}	
 
 int main()
 {
@@ -186,7 +204,20 @@ int main()
 
 			if (!strcmp(token[0], "ls"))
 			{
-				show_contents();
+				if (token[1] == NULL)
+				{
+					show_current();
+				}
+
+				else if (!strcmp(token[1], "."))
+				{
+					show_current();
+				}
+
+				else if (!strcmp(token[1], ".."))
+				{
+					show_parent();
+				}	
 			}
 
 			if (!strcmp(token[0], "test"))
