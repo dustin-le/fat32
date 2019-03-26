@@ -36,12 +36,12 @@ int32_t FirstDataSector = 0; // BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDi
 int32_t FirstSectorofCluster = 0; // ((N – 2) * BPB_SecPerClus) + FirstDataSector, where N is any valid data cluster number.
 
 struct __attribute__((__packed__)) DirectoryEntry {
-	char DIR_NAME[11];
+	char DIR_Name[11];
 	uint8_t DIR_Attr;
 	uint8_t Unused1[8];
 	uint16_t DIR_FirstClusterHigh; // Always 0
 	uint8_t Unused2[4];
-	uint16_t Dir_FirstClusterLow;
+	uint16_t DIR_FirstClusterLow;
 	uint32_t DIR_FileSize;
 };
 
@@ -86,14 +86,28 @@ void open_file(char* filename)
 		fseek(fp, 71, SEEK_SET); // Skip to BS_VolLab
 		fread(&BS_VolLab, 11, 1, fp);
 
-		//RootDirSectors = ((BPB_RootEntCnt * 32) + (BPB_BytsPerSec - 1)) / BPB_BytsPerSec;
-		FirstDataSector = BPB_RsvdSecCnt + (BPB_NumFATs * BPB_FATSz32) + RootDirSectors;
+		int root = (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec) + (BPB_RsvdSecCnt * BPB_BytsPerSec);
+		fseek(fp, root, SEEK_SET);
+		fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
 	}
 }
 
+// ls implementation. Prints out file information read from open_file function. 
 void show_contents()
 {
-	
+	int i;
+	for (i = 0; i < 16; i++)
+	{
+		//Ignores files with attributes that are not 0x01, 0x10, or 0x20, as those files are hidden.
+		if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20)
+		{
+			char name[12];
+			memset(&name, 0, 12);
+
+			strncpy(name, dir[i].DIR_Name, 11);
+			printf("%s %d\n\n", name, dir[i].DIR_FirstClusterLow);
+		}	
+	}	
 }
 
 int main()
@@ -168,6 +182,20 @@ int main()
 				printf("BPB_RsvdSecCnt: %4x  || %4d\n", BPB_RsvdSecCnt, BPB_RsvdSecCnt);
 				printf("BPB_NumFATs: %7x  || %4d\n", BPB_NumFATs, BPB_NumFATs);
 				printf("BPB_FATSz32: %7x  || %4d\n\n", BPB_FATSz32, BPB_FATSz32);
+			}	
+
+			if (!strcmp(token[0], "ls"))
+			{
+				show_contents();
+			}
+
+			if (!strcmp(token[0], "test"))
+			{
+				char name[12];
+				memset(&name, 0, 12);
+
+				strncpy(name, dir[3].DIR_Name, 11);
+				printf("%s %d\n%x\n", name, dir[3].DIR_FirstClusterLow, dir[3].DIR_Attr);
 			}	
 		}
 		free( working_root );
