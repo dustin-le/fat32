@@ -35,12 +35,11 @@ int32_t RootDirSectors = 0; // ((BPB_RootEntCnt * 32) + (BPB_BytsPerSec – 1)) 
 int32_t FirstDataSector = 0; // BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors
 int32_t FirstSectorofCluster = 0; // ((N – 2) * BPB_SecPerClus) + FirstDataSector, where N is any valid data cluster number.
 
-
 struct __attribute__((__packed__)) DirectoryEntry {
 	char DIR_NAME[11];
 	uint8_t DIR_Attr;
 	uint8_t Unused1[8];
-	uint16_t DIR_FirstClusterHigh;
+	uint16_t DIR_FirstClusterHigh; // Always 0
 	uint8_t Unused2[4];
 	uint16_t Dir_FirstClusterLow;
 	uint32_t DIR_FileSize;
@@ -87,14 +86,18 @@ void open_file(char* filename)
 		fseek(fp, 71, SEEK_SET); // Skip to BS_VolLab
 		fread(&BS_VolLab, 11, 1, fp);
 
-		RootDirSectors = ((BPB_RootEntCnt * 32) + (BPB_BytsPerSec - 1)) / BPB_BytsPerSec;
+		//RootDirSectors = ((BPB_RootEntCnt * 32) + (BPB_BytsPerSec - 1)) / BPB_BytsPerSec;
 		FirstDataSector = BPB_RsvdSecCnt + (BPB_NumFATs * BPB_FATSz32) + RootDirSectors;
 	}
 }
 
+void show_contents()
+{
+	
+}
+
 int main()
 {
-
   char * cmd_str = (char*) malloc( MAX_COMMAND_SIZE );
 
   while( 1 )
