@@ -50,9 +50,20 @@ struct __attribute__((__packed__)) DirectoryEntry {
 
 struct DirectoryEntry dir[16];
 
+// Finds the starting address of a block of data given the sector number corresponding to that data block.
 int LBAToOffset(int32_t sector)
 {
 	return (( sector - 2 ) * BPB_BytsPerSec) + (BPB_BytsPerSec * BPB_RsvdSecCnt) + (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec);
+}
+
+// Given a logical block address, look up into the first FAT and return the logical block address of the block in the file. If there is no further blocks then return -1.
+int16_t NextLB(uint32_t sector)
+{
+	uint32_t FATAddress = (BPB_BytsPerSec * BPB_RsvdSecCnt) + (sector * 4);
+	int16_t val;
+	fseek(fp, FATAddress, SEEK_SET);
+	fread(&val, 2, 1, fp);
+	return val;
 }	
 
 void open_file(char* filename)
@@ -89,7 +100,8 @@ void open_file(char* filename)
 		fseek(fp, 71, SEEK_SET); // Skip to BS_VolLab
 		fread(&BS_VolLab, 11, 1, fp);
 
-		root = (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec) + (BPB_RsvdSecCnt * BPB_BytsPerSec); 
+		root = (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec) + (BPB_RsvdSecCnt * BPB_BytsPerSec);  //0x100400
+		
 		check = 1;
 		fseek(fp, root, SEEK_SET);
 		fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
@@ -97,7 +109,7 @@ void open_file(char* filename)
 }
 
 // ls implementation. Prints out file information read from open_file function. 
-void show_current()
+void ls()
 {
 	int i;
 	for (i = 0; i < 16; i++)
@@ -109,22 +121,40 @@ void show_current()
 			memset(&name, 0, 12);
 
 			strncpy(name, dir[i].DIR_Name, 11);
-			printf("%s %d\n\n", name, dir[i].DIR_FirstClusterLow);
-		}	
+			printf("%s %d %x\n", name, dir[i].DIR_FirstClusterLow, dir[i].DIR_Attr);
+		}
 	}	
 }
 
-void show_parent()
+void cd(char* directory)
+{
+	/*
+	int i;
+	for (i = 0; i < 16; i++)
+	{
+			if (!strcmp(dir[i].DIR_Name, directory))
+			{
+				printf("Match!\n");
+			}	
+	}	
+	*/
+	fseek(fp, LBAToOffset(dir[8].DIR_FirstClusterLow), SEEK_SET);
+  fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
+ }	
+
+void stat(char* name)
 {
 	int i;
-	if (check == 1)
+	for (i = 0; i < 16; i++)
 	{
-		printf("Error: Currently in root directory.\n");
-	}
-	
-	else
-	{
-		// IMPLEMENT
+		if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20)
+		{
+			if (!strcmp(name, dir[i].DIR_Name))
+			{
+				printf("%s: %x || %d\n", name, dir[i].DIR_Attr, dir[i].DIR_FirstClusterLow);
+				break;
+			}	
+		}	
 	}	
 }	
 
@@ -204,29 +234,65 @@ int main()
 
 			if (!strcmp(token[0], "ls"))
 			{
-				if (token[1] == NULL)
-				{
-					show_current();
-				}
-
-				else if (!strcmp(token[1], "."))
-				{
-					show_current();
-				}
-
-				else if (!strcmp(token[1], ".."))
-				{
-					show_parent();
-				}	
+				ls();
 			}
+
+			if (!strcmp(token[0], "cd"))
+			{
+				if (token[1] != NULL)
+				{
+					cd(token[1]);
+				}	
+			}	
+
+			if (!strcmp(token[0], "stat"))
+			{
+				if (token[1] != NULL)
+				{
+					stat(token[1]);
+				}	
+			}	
 
 			if (!strcmp(token[0], "test"))
 			{
-				char name[12];
-				memset(&name, 0, 12);
+				int i;
+				for (i = 0; i < 16; i++)
+				{
+							if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20)
+							{
+								char name[12];
+								memset(&name, 0, 12);
 
-				strncpy(name, dir[3].DIR_Name, 11);
-				printf("%s %d\n%x\n", name, dir[3].DIR_FirstClusterLow, dir[3].DIR_Attr);
+								strncpy(name, dir[i].DIR_Name, 11);
+								printf("%s: %x\n", name, dir[i].DIR_Attr);
+							}	
+				}	
+
+				/*
+				int i, test;
+				for (i = 0; i < 16; i++)
+				{
+					if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20)
+					{
+							char name[12];
+							memset(&name, 0, 12);
+
+							strncpy(name, dir[i].DIR_Name, 11);
+							test = NextLB(dir[i].DIR_FirstClusterLow);
+							printf("%s: %d\n", name, test);
+					}	
+				}	
+				*/
+				/*
+				int i;
+				for (i = 0; i < 16; i++)
+				{
+					if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20)
+					{
+						printf("%s\n", dir[i].DIR_Name);
+					}
+				}	
+				*/
 			}	
 		}
 		free( working_root );
