@@ -139,8 +139,8 @@ void cd(char* directory)
 	}	
 	*/
 	fseek(fp, LBAToOffset(dir[8].DIR_FirstClusterLow), SEEK_SET);
-  fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
- }	
+	fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
+}	
 
 void stat(char* name)
 {
