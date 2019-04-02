@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <ctype.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -38,6 +39,7 @@ int32_t FirstSectorofCluster = 0; // ((N – 2) * BPB_SecPerClus) + FirstDataSec
 int root; // Address of root directory.
 int check; // Checks if currently in root directory (0 for no, 1 for yes).
 
+
 struct __attribute__((__packed__)) DirectoryEntry {
 	char DIR_Name[11];
 	uint8_t DIR_Attr;
@@ -47,6 +49,39 @@ struct __attribute__((__packed__)) DirectoryEntry {
 	uint16_t DIR_FirstClusterLow;
 	uint32_t DIR_FileSize;
 };
+
+int compare(char* IMG_Name, char* input)
+{
+  char expanded_name[11];
+  memset( expanded_name, ' ', 11);
+
+  char *token = strtok( input, "." );
+
+  strncpy( expanded_name, token, strlen( token ) );
+
+  token = strtok( NULL, "." );
+
+  if( token )
+  {
+    strncpy( (char*)(expanded_name+8), token, strlen(token ) );
+  }
+
+  expanded_name[11] = '\0';
+
+  int i;
+  for( i = 0; i < 11; i++ )
+  {
+    expanded_name[i] = toupper( expanded_name[i] );
+  }
+  if( strncmp( expanded_name, IMG_Name, 11 ) == 0 )
+  {
+  	return 1;
+  }
+  else
+  {
+	return 0;
+  }
+}
 
 struct DirectoryEntry dir[16];
 
@@ -115,31 +150,31 @@ void ls()
 	for (i = 0; i < 16; i++)
 	{
 		//Ignores files with attributes that are not 0x01, 0x10, or 0x20, as those files are hidden.
-		if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20)
+		if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 || dir[i].DIR_Attr == 0x30)
 		{
-			char name[12];
-			memset(&name, 0, 12);
+			if(dir[i].DIR_Name[0] != 0xffffffe5)
+			{
+				char name[12];
+				memset(&name, 0, 12);
 
-			strncpy(name, dir[i].DIR_Name, 11);
-			printf("%s %d %x\n", name, dir[i].DIR_FirstClusterLow, dir[i].DIR_Attr);
+				strncpy(name, dir[i].DIR_Name, 11);
+				printf("%s %x %x %d\n", name, dir[i].DIR_Attr, dir[i].DIR_Name[0], dir[i].DIR_FirstClusterLow);
+			}
 		}
 	}	
 }
 
 void cd(char* directory)
 {
-	/*
 	int i;
 	for (i = 0; i < 16; i++)
 	{
-			if (!strcmp(dir[i].DIR_Name, directory))
+			if (compare(dir[i].DIR_Name, directory))
 			{
-				printf("Match!\n");
+				fseek(fp, LBAToOffset(dir[i].DIR_FirstClusterLow), SEEK_SET);
+				fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
 			}	
 	}	
-	*/
-	fseek(fp, LBAToOffset(dir[8].DIR_FirstClusterLow), SEEK_SET);
-	fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
 }	
 
 void stat(char* name)
@@ -149,10 +184,15 @@ void stat(char* name)
 	{
 		if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20)
 		{
-			if (!strcmp(name, dir[i].DIR_Name))
+			char temp[100];
+			strcpy(temp, name);
+
+			char temp2[12];
+			memset(&temp2, 0, 12);
+			strncpy(temp2, dir[i].DIR_Name, 11);
+			if (compare(dir[i].DIR_Name, temp))
 			{
-				printf("%s: %x || %d\n", name, dir[i].DIR_Attr, dir[i].DIR_FirstClusterLow);
-				break;
+				printf("DIR_Name: %20s\nDIR_Attr: %19d\nDIR_FirstClusterLow: %8d\nDIR_FileSize: %14d\n", temp2, dir[i].DIR_Attr, dir[i].DIR_FirstClusterLow, dir[i].DIR_FileSize);
 			}	
 		}	
 	}	
@@ -255,44 +295,7 @@ int main()
 
 			if (!strcmp(token[0], "test"))
 			{
-				int i;
-				for (i = 0; i < 16; i++)
-				{
-							if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20)
-							{
-								char name[12];
-								memset(&name, 0, 12);
-
-								strncpy(name, dir[i].DIR_Name, 11);
-								printf("%s: %x\n", name, dir[i].DIR_Attr);
-							}	
-				}	
-
-				/*
-				int i, test;
-				for (i = 0; i < 16; i++)
-				{
-					if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20)
-					{
-							char name[12];
-							memset(&name, 0, 12);
-
-							strncpy(name, dir[i].DIR_Name, 11);
-							test = NextLB(dir[i].DIR_FirstClusterLow);
-							printf("%s: %d\n", name, test);
-					}	
-				}	
-				*/
-				/*
-				int i;
-				for (i = 0; i < 16; i++)
-				{
-					if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20)
-					{
-						printf("%s\n", dir[i].DIR_Name);
-					}
-				}	
-				*/
+				compare(dir[8].DIR_Name, token[1]);
 			}	
 		}
 		free( working_root );
