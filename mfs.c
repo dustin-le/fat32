@@ -38,6 +38,7 @@ int32_t FirstSectorofCluster = 0; // ((N – 2) * BPB_SecPerClus) + FirstDataSec
 
 int root; // Address of root directory.
 int check; // Check if file is open.
+int must; // Conditional for cloes printfs.
 
 struct __attribute__((__packed__)) DirectoryEntry {
 	char DIR_Name[11];
@@ -112,6 +113,7 @@ void open_file(char* filename)
 	else
 	{
 		check = 1; // File is open.
+		must = 0; // No longer need to print out close_file prints.
 
 		fseek(fp, 3, SEEK_SET); // Skip BS_jmpBoot
 		fread(&BS_OEMName, 8, 1, fp);
@@ -147,7 +149,14 @@ void close_file()
 {
 	if (check == 0)
 	{
-		
+		printf("Error: File system not open.\n");
+	}
+
+	else
+	{
+		fclose(fp);
+		check = 0;
+		must = 1;
 	}
 }
 
@@ -289,10 +298,22 @@ int main()
 				}	
 			}
 
+			if (!strcmp(token[0], "close"))
+			{
+				close_file();
+				continue;
+			}	
+
 			if (!strcmp(token[0], "exit") || !strcmp(token[0], "quit"))
 			{
 				exit(0);
 			}	
+
+			if (must == 1)
+			{
+				printf("Error: File system image must be opened first.\n");
+				continue;
+			}
 
 			if (!strcmp(token[0], "info"))
 			{
