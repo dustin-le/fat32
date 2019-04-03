@@ -38,7 +38,7 @@ int32_t FirstSectorofCluster = 0; // ((N – 2) * BPB_SecPerClus) + FirstDataSec
 
 int root; // Address of root directory.
 int check; // Check if file is open.
-int must; // Conditional for cloes printfs.
+int must; // Conditional for close printfs.
 
 struct __attribute__((__packed__)) DirectoryEntry {
 	char DIR_Name[11];
@@ -184,11 +184,11 @@ void ls()
 void cd(char* directory)
 {
 /*
-	new_dir = strtok(path, "/");
-	change_directory(new_dir);
+	char* new_dir = strtok(directory, "/");
+	cd(new_dir);
 	while (new_dir = strtok(NULL, "/");
 	{
-		change_directory(new_dir);
+		cd(new_dir);
 	}
 */
 	int i;
@@ -341,8 +341,13 @@ int main()
 			if (!strcmp(token[0], "cd"))
 			{
 				if (token[1] != NULL)
-				{
-					cd(token[1]);
+				{	
+					char* new_dir = strtok(token[1], "/");
+					cd(new_dir);
+					while (new_dir = strtok(NULL, "/"))
+					{
+						cd(new_dir);
+					}
 				}	
 			}	
 
