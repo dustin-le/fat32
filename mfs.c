@@ -37,8 +37,7 @@ int32_t FirstDataSector = 0; // BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDi
 int32_t FirstSectorofCluster = 0; // ((N – 2) * BPB_SecPerClus) + FirstDataSector, where N is any valid data cluster number.
 
 int root; // Address of root directory.
-int check; // Checks if currently in root directory (0 for no, 1 for yes).
-
+int check; // Check if file is open.
 
 struct __attribute__((__packed__)) DirectoryEntry {
 	char DIR_Name[11];
@@ -52,8 +51,8 @@ struct __attribute__((__packed__)) DirectoryEntry {
 
 int compare(char* IMG_Name, char* input)
 {
-  char expanded_name[11];
-  memset( expanded_name, ' ', 11);
+  char expanded_name[12];
+  memset( expanded_name, ' ', 12);
 
   char *token = strtok( input, "." );
 
@@ -112,6 +111,8 @@ void open_file(char* filename)
 	
 	else
 	{
+		check = 1; // File is open.
+
 		fseek(fp, 3, SEEK_SET); // Skip BS_jmpBoot
 		fread(&BS_OEMName, 8, 1, fp);
 
@@ -137,9 +138,16 @@ void open_file(char* filename)
 
 		root = (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec) + (BPB_RsvdSecCnt * BPB_BytsPerSec);  //0x100400
 		
-		check = 1;
 		fseek(fp, root, SEEK_SET);
 		fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
+	}
+}
+
+void close_file()
+{
+	if (check == 0)
+	{
+		
 	}
 }
 
@@ -167,14 +175,38 @@ void ls()
 void cd(char* directory)
 {
 	int i;
-	for (i = 0; i < 16; i++)
+	// Compare function causes a segfault if passed in . or .. so use strstr instead.
+	if (!strcmp(directory, ".") || !strcmp(directory, ".."))
 	{
+		for (i = 0; i < 16; i++)
+		{
+			if (strstr(dir[i].DIR_Name, directory) != NULL)
+			{
+				// If the parent directory is the root directory, set the low cluster to 2.
+				if (dir[i].DIR_FirstClusterLow == 0)
+				{
+					dir[i].DIR_FirstClusterLow = 2;
+				}
+
+				fseek(fp, LBAToOffset(dir[i].DIR_FirstClusterLow), SEEK_SET);
+				fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
+				break;
+			}
+		}	
+	}
+
+	else
+	{
+		for (i = 0; i < 16; i++)
+		{
 			if (compare(dir[i].DIR_Name, directory))
 			{
 				fseek(fp, LBAToOffset(dir[i].DIR_FirstClusterLow), SEEK_SET);
 				fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
-			}	
-	}	
+				break;
+			}
+		}	
+	}
 }	
 
 void stat(char* name)
@@ -291,11 +323,6 @@ int main()
 				{
 					stat(token[1]);
 				}	
-			}	
-
-			if (!strcmp(token[0], "test"))
-			{
-				compare(dir[8].DIR_Name, token[1]);
 			}	
 		}
 		free( working_root );
