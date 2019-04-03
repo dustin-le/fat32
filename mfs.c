@@ -183,6 +183,14 @@ void ls()
 
 void cd(char* directory)
 {
+/*
+	new_dir = strtok(path, "/");
+	change_directory(new_dir);
+	while (new_dir = strtok(NULL, "/");
+	{
+		change_directory(new_dir);
+	}
+*/
 	int i;
 	// Compare function causes a segfault if passed in . or .. so use strstr instead.
 	if (!strcmp(directory, ".") || !strcmp(directory, ".."))
