@@ -199,7 +199,7 @@ void cd(char* directory)
 	{
 		for (i = 0; i < 16; i++)
 		{
-			if (compare(dir[i].DIR_Name, directory))
+			if (compare(dir[i].DIR_Name, directory) && dir[i].DIR_Attr != 0x20)
 			{
 				fseek(fp, LBAToOffset(dir[i].DIR_FirstClusterLow), SEEK_SET);
 				fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
