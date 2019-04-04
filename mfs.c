@@ -183,14 +183,6 @@ void ls()
 
 void cd(char* directory)
 {
-/*
-	char* new_dir = strtok(directory, "/");
-	cd(new_dir);
-	while (new_dir = strtok(NULL, "/");
-	{
-		cd(new_dir);
-	}
-*/
 	int i;
 	// Compare function causes a segfault if passed in . or .. so use strstr instead.
 	if (!strcmp(directory, ".") || !strcmp(directory, ".."))
@@ -241,7 +233,7 @@ void stat(char* name)
 			strncpy(temp2, dir[i].DIR_Name, 11);
 			if (compare(dir[i].DIR_Name, temp))
 			{
-				printf("DIR_Name: %20s\nDIR_Attr: %19d\nDIR_FirstClusterLow: %8d\nDIR_FileSize: %14d\n", temp2, dir[i].DIR_Attr, dir[i].DIR_FirstClusterLow, dir[i].DIR_FileSize);
+				printf("DIR_Name: %22s\nDIR_Attr: %13d\nDIR_FirstClusterLow: %d\nDIR_FileSize: %11d\n", temp2, dir[i].DIR_Attr, dir[i].DIR_FirstClusterLow, dir[i].DIR_FileSize);
 			}	
 		}	
 	}	
