@@ -32,10 +32,6 @@ char BS_VolLab[11]; // Volume label. Matches the 11-byte volume label recorded i
 int32_t BPB_FATSz32; // 32-bit count of sectors occupied by ONE FAT.
 int32_t BPB_RootClus; // Set to the cluster number of the first cluster of the root directory, usually 2.
 
-int32_t RootDirSectors = 0; // ((BPB_RootEntCnt * 32) + (BPB_BytsPerSec – 1)) / BPB_BytsPerSec
-int32_t FirstDataSector = 0; // BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + RootDirSectors
-int32_t FirstSectorofCluster = 0; // ((N – 2) * BPB_SecPerClus) + FirstDataSector, where N is any valid data cluster number.
-
 int root; // Address of root directory.
 int check; // Check if file is open.
 int must; // Conditional for close printfs.
@@ -103,45 +99,53 @@ int16_t NextLB(uint32_t sector)
 
 void open_file(char* filename)
 {
-	fp = fopen(filename, "a+");
-
-	if (fp == NULL)
+	if (check == 1)
 	{
-		printf("Error: File system image not found.\n\n");
-	}	
-	
+		printf("Error: File system image already open.\n");
+	}
+
 	else
 	{
-		check = 1; // File is open.
-		must = 0; // No longer need to print out close_file prints.
+		fp = fopen(filename, "a+");
 
-		fseek(fp, 3, SEEK_SET); // Skip BS_jmpBoot
-		fread(&BS_OEMName, 8, 1, fp);
-
-		fread(&BPB_BytsPerSec, 2, 1, fp);
-
-		fread(&BPB_SecPerClus, 1, 1, fp);
-
-		fread(&BPB_RsvdSecCnt, 2, 1, fp);
-
-		fseek(fp, 16, SEEK_SET); // Skip BPB_RsvdSecCrit
-		fread(&BPB_NumFATs, 1, 1, fp);
-
-		fread(&BPB_RootEntCnt, 2, 1, fp);
-
-		fseek(fp, 36, SEEK_SET); // Skip to BPB_FATSz32
-		fread(&BPB_FATSz32, 4, 1, fp);
-
-		fseek(fp, 44, SEEK_SET); // Skip BPB_ExtFlags and BPB_FSVer
-		fread(&BPB_RootClus, 4, 1, fp);
+		if (fp == NULL)
+		{
+			printf("Error: File system image not found.\n\n");
+		}	
 		
-		fseek(fp, 71, SEEK_SET); // Skip to BS_VolLab
-		fread(&BS_VolLab, 11, 1, fp);
+		else
+		{
+			check = 1; // File is open.
+			must = 0; // No longer need to print out close_file prints.
 
-		root = (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec) + (BPB_RsvdSecCnt * BPB_BytsPerSec);  //0x100400
-		
-		fseek(fp, root, SEEK_SET);
-		fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
+			fseek(fp, 3, SEEK_SET); // Skip BS_jmpBoot
+			fread(&BS_OEMName, 8, 1, fp);
+
+			fread(&BPB_BytsPerSec, 2, 1, fp);
+
+			fread(&BPB_SecPerClus, 1, 1, fp);
+
+			fread(&BPB_RsvdSecCnt, 2, 1, fp);
+
+			fseek(fp, 16, SEEK_SET); // Skip BPB_RsvdSecCrit
+			fread(&BPB_NumFATs, 1, 1, fp);
+
+			fread(&BPB_RootEntCnt, 2, 1, fp);
+
+			fseek(fp, 36, SEEK_SET); // Skip to BPB_FATSz32
+			fread(&BPB_FATSz32, 4, 1, fp);
+
+			fseek(fp, 44, SEEK_SET); // Skip BPB_ExtFlags and BPB_FSVer
+			fread(&BPB_RootClus, 4, 1, fp);
+			
+			fseek(fp, 71, SEEK_SET); // Skip to BS_VolLab
+			fread(&BS_VolLab, 11, 1, fp);
+
+			root = (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec) + (BPB_RsvdSecCnt * BPB_BytsPerSec);  //0x100400
+			
+			fseek(fp, root, SEEK_SET);
+			fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
+		}
 	}
 }
 
@@ -160,27 +164,184 @@ void close_file()
 	}
 }
 
+// Print the attributes and starting cluster number of the file or directory name specified.
+void stat(char* filename)
+{
+	int i;
+	int found = -1;
+	for (i = 0; i < 16; i++)
+	{
+		if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20)
+		{
+			char temp[100];
+			strcpy(temp, filename);
+
+			char temp2[12];
+			memset(&temp2, 0, 12);
+			strncpy(temp2, dir[i].DIR_Name, 11);
+
+			if (!strcmp(filename, ".") || !strcmp(filename, ".."))
+			{
+				if (strstr(dir[i].DIR_Name, filename) != NULL)
+				{
+					// If the parent directory is the root directory, set the low cluster to 2.
+					if (dir[i].DIR_FirstClusterLow == 0)
+					{
+						dir[i].DIR_FirstClusterLow = 2;
+					}
+
+					printf("DIR_Name: %22s\nDIR_Attr: %13d\nDIR_FirstClusterLow: %d\nDIR_FileSize: %11d\n", temp2, dir[i].DIR_Attr, dir[i].DIR_FirstClusterLow, dir[i].DIR_FileSize);
+					found = 1;
+					break;
+				}
+			}
+
+			else if (compare(dir[i].DIR_Name, temp))
+			{
+				printf("DIR_Name: %22s\nDIR_Attr: %13d\nDIR_FirstClusterLow: %d\nDIR_FileSize: %11d\n", temp2, dir[i].DIR_Attr, dir[i].DIR_FirstClusterLow, dir[i].DIR_FileSize);
+				found = 1;
+			}	
+		}	
+	}
+
+	if (found == -1)
+	{
+		printf("Error: File not found.\n");
+	}
+}	
+
+// Retrieves a file from the FAT32 image and places it in your current working directory.
+void get(char* filename)
+{
+	int found = -1;
+	int i;
+
+	for (i = 0; i < 16; i++)
+	{
+		char temp[100];
+		strcpy(temp, filename);
+		
+		if (compare(dir[i].DIR_Name, temp))
+		{
+			found = i; // Index of the file in the FAT32 image.
+			break;
+		}
+	}
+
+	if (found == -1)
+	{
+		printf("Error: File not found.\n");
+	}
+	
+	else
+	{
+		int cluster = dir[i].DIR_FirstClusterLow;
+		int size = dir[i].DIR_FileSize;
+		int offset = LBAToOffset(cluster);
+		
+		fseek(fp, offset, SEEK_SET);
+
+		FILE *ofp;
+		ofp = fopen(filename, "w");
+		char buff[512];
+		
+		// If the file is less than 512, simply write it to the current working directory.
+		if (size < 512)
+		{
+			fread(&buff[0], size, 1, fp);
+			fwrite(&buff[0], size, 1, ofp);
+		}
+
+		// If the file size is greater than 512, keep subtracting 512 and writing to the current working directory until the size is < 0.
+		if (size > 512)
+		{
+			fread(&buff[0], 512, 1, fp);
+			fwrite(&buff[0], 512, 1, ofp);
+			size = size - 512;
+
+			while (size > 0)
+			{
+				cluster = NextLB(cluster);
+				offset = LBAToOffset(cluster);
+				fseek(fp, offset, SEEK_SET);
+				
+				fread(&buff[0], 512, 1, fp);
+				fread(&buff[0], 512, 1, ofp);
+				size = size - 512;
+			}
+		}
+		fclose(ofp);
+	}
+}
+
+// Retrieves a file from the current working directory and places it in the FAT32 image.
+void put(char* filename)
+{
+	FILE *ofp;
+	ofp = fopen(filename, "r");
+
+	if (ofp == NULL)
+	{
+		printf("Error: File not found.\n");
+	}
+
+	else
+	{
+		// Same logic as the get function, just with the file pointers switched around.
+		int last_entry = sizeof(dir)/sizeof(dir[0]);
+		int cluster = dir[last_entry].DIR_FirstClusterLow;
+		int size = dir[last_entry].DIR_FileSize;
+		int offset = LBAToOffset(cluster);
+		
+		fseek(fp, offset, SEEK_SET);
+		char buff[512];
+		
+		if (size < 512)
+		{
+			fread(&buff[0], size, 1, ofp);
+			fwrite(&buff[0], size, 1, fp);
+		}
+
+		if (size > 512)
+		{
+			fread(&buff[0], 512, 1, ofp);
+			fwrite(&buff[0], 512, 1, fp);
+			size = size - 512;
+
+			while (size > 0)
+			{
+				cluster = NextLB(cluster);
+				offset = LBAToOffset(cluster);
+				fseek(fp, offset, SEEK_SET);
+				
+				fread(&buff[0], 512, 1, ofp);
+				fread(&buff[0], 512, 1, fp);
+				size = size - 512;
+			}
+		}
+		fclose(ofp);
+	}
+}
+
 // ls implementation. Prints out file information read from open_file function. 
 void ls()
 {
 	int i;
 	for (i = 0; i < 16; i++)
 	{
-		//Ignores files with attributes that are not 0x01, 0x10, or 0x20, as those files are hidden.
-		if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 || dir[i].DIR_Attr == 0x30)
+		// Only show files that are read only (0x01), subdirectories (0x20), and . (0x30). Does not show files that start with 0xffffffe5, as those are deleted.
+		if ((dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 || dir[i].DIR_Attr == 0x30) && dir[i].DIR_Name[0] != 0xffffffe5) 
 		{
-			if(dir[i].DIR_Name[0] != 0xffffffe5)
-			{
 				char name[12];
 				memset(&name, 0, 12);
 
 				strncpy(name, dir[i].DIR_Name, 11);
 				printf("%s\n", name);
-			}
 		}
 	}	
 }
 
+// Changes the current working directory to the given directory. Supports relative and absolute paths.
 void cd(char* directory)
 {
 	int i;
@@ -218,132 +379,27 @@ void cd(char* directory)
 	}
 }	
 
-void stat(char* filename)
+// Reads from the given file at the position, in bytes, specified by the position parameter and output the number of bytes specified.
+void read_file(char* filename, int position, int bytes)
 {
-	int i;
-	for (i = 0; i < 16; i++)
-	{
-		if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20)
-		{
-			char temp[100];
-			strcpy(temp, filename);
-
-			char temp2[12];
-			memset(&temp2, 0, 12);
-			strncpy(temp2, dir[i].DIR_Name, 11);
-			if (compare(dir[i].DIR_Name, temp))
-			{
-				printf("DIR_Name: %22s\nDIR_Attr: %13d\nDIR_FirstClusterLow: %d\nDIR_FileSize: %11d\n", temp2, dir[i].DIR_Attr, dir[i].DIR_FirstClusterLow, dir[i].DIR_FileSize);
-			}	
-		}	
-	}	
-}	
-
-void get(char* filename)
-{
-	int found = -1;
 	int i;
 
 	for (i = 0; i < 16; i++)
 	{
-		char temp[100];
-		strcpy(temp, filename);
-		
-		if (compare(dir[i].DIR_Name, temp))
+		if (compare(dir[i].DIR_Name, filename))
 		{
-			found = i;
-			break;
-		}
-	}
-
-	if (found == -1)
-	{
-		printf("Error: File not found.\n");
-	}
-	
-	else
-	{
-		int cluster = dir[i].DIR_FirstClusterLow;
-		int size = dir[i].DIR_FileSize;
-		int offset = LBAToOffset(cluster);
-		
-		fseek(fp, offset, SEEK_SET);
-
-		FILE *ofp;
-		ofp = fopen(filename, "w");
-		char buff[512];
-		
-		if (size < 512)
-		{
-			fread(&buff[0], size, 1, fp);
-			fwrite(&buff[0], size, 1, ofp);
-		}
-
-		if (size > 512)
-		{
-			fread(&buff[0], 512, 1, fp);
-			fwrite(&buff[0], 512, 1, ofp);
-			size = size - 512;
-
-			while (size > 0)
+			// Only show files that are read only (0x01), subdirectories (0x20), and . (0x30). Does not show files that start with 0xffffffe5, as those are deleted.
+			if ((dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 || dir[i].DIR_Attr == 0x30) && dir[i].DIR_Name[0] != 0xffffffe5) 
 			{
-				cluster = NextLB(cluster);
-				offset = LBAToOffset(cluster);
-				fseek(fp, offset, SEEK_SET);
-				
-				fread(&buff[0], 512, 1, fp);
-				fread(&buff[0], 512, 1, ofp);
-				size = size - 512;
+					char buff[bytes];
+					fseek(fp, LBAToOffset(dir[i].DIR_FirstClusterLow), SEEK_SET); // First go to the file itself.
+					fseek(fp, position, SEEK_CUR); // Then, go to the location specified by the position parameter.
+					fread(&buff[0], bytes, 1, fp);
+					printf("%s\n", buff);
+					break;
 			}
 		}
-		fclose(ofp);
-	}
-}
-
-void put(char* filename)
-{
-	FILE *ofp;
-	ofp = fopen(filename, "r");
-
-	if (ofp == NULL)
-	{
-		printf("Error: File not found.\n");
-	}
-
-	else
-	{
-		int last_entry = sizeof(dir)/sizeof(dir[0]);
-		int cluster = dir[last_entry].DIR_FirstClusterLow;
-		int size = dir[last_entry].DIR_FileSize;
-		int offset = LBAToOffset(cluster);
 		
-		fseek(fp, offset, SEEK_SET);
-		char buff[512];
-		
-		if (size < 512)
-		{
-			fread(&buff[0], size, 1, ofp);
-			fwrite(&buff[0], size, 1, fp);
-		}
-
-		if (size > 512)
-		{
-			fread(&buff[0], 512, 1, ofp);
-			fwrite(&buff[0], 512, 1, fp);
-			size = size - 512;
-
-			while (size > 0)
-			{
-				cluster = NextLB(cluster);
-				offset = LBAToOffset(cluster);
-				fseek(fp, offset, SEEK_SET);
-				
-				fread(&buff[0], 512, 1, ofp);
-				fread(&buff[0], 512, 1, fp);
-				size = size - 512;
-			}
-		}
-		fclose(ofp);
 	}
 }
 
@@ -414,7 +470,10 @@ int main()
 
 			if (!strcmp(token[0], "exit") || !strcmp(token[0], "quit"))
 			{
-				fclose(fp);
+				if (check == 1)
+				{
+					fclose(fp);
+				}
 				exit(0);
 			}	
 
@@ -443,9 +502,9 @@ int main()
 			{
 				if (token[1] != NULL)
 				{	
-					char* new_dir = strtok(token[1], "/");
+					char* new_dir = strtok(token[1], "/"); // Handles relative paths through string tokenization.
 					cd(new_dir);
-					while (new_dir = strtok(NULL, "/"))
+					while ((new_dir = strtok(NULL, "/")))
 					{
 						cd(new_dir);
 					}
@@ -473,6 +532,16 @@ int main()
 				if (token[1] != NULL)
 				{
 					put(token[1]);
+				}
+			}
+
+			if (!strcmp(token[0], "read"))
+			{
+				if (token[1] != NULL && token[2] != NULL && token[3] != NULL)
+				{
+					int position = atoi(token[2]);
+					int bytes = atoi(token[3]);
+					read_file(token[1], position, bytes);
 				}
 			}
 		}
