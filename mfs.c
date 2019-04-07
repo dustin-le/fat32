@@ -50,6 +50,8 @@ struct __attribute__((__packed__)) DirectoryEntry {
 	uint32_t DIR_FileSize;
 };
 
+struct DirectoryEntry dir[16];
+
 int compare(char* IMG_Name, char* input)
 {
   char expanded_name[12];
@@ -83,8 +85,6 @@ int compare(char* IMG_Name, char* input)
   }
 }
 
-struct DirectoryEntry dir[16];
-
 // Finds the starting address of a block of data given the sector number corresponding to that data block.
 int LBAToOffset(int32_t sector)
 {
@@ -103,7 +103,7 @@ int16_t NextLB(uint32_t sector)
 
 void open_file(char* filename)
 {
-	fp = fopen(filename, "r");
+	fp = fopen(filename, "a+");
 
 	if (fp == NULL)
 	{
@@ -175,7 +175,7 @@ void ls()
 				memset(&name, 0, 12);
 
 				strncpy(name, dir[i].DIR_Name, 11);
-				printf("%s %x %x %d\n", name, dir[i].DIR_Attr, dir[i].DIR_Name[0], dir[i].DIR_FirstClusterLow);
+				printf("%s\n", name);
 			}
 		}
 	}	
@@ -218,7 +218,7 @@ void cd(char* directory)
 	}
 }	
 
-void stat(char* name)
+void stat(char* filename)
 {
 	int i;
 	for (i = 0; i < 16; i++)
@@ -226,7 +226,7 @@ void stat(char* name)
 		if (dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20)
 		{
 			char temp[100];
-			strcpy(temp, name);
+			strcpy(temp, filename);
 
 			char temp2[12];
 			memset(&temp2, 0, 12);
@@ -238,6 +238,114 @@ void stat(char* name)
 		}	
 	}	
 }	
+
+void get(char* filename)
+{
+	int found = -1;
+	int i;
+
+	for (i = 0; i < 16; i++)
+	{
+		char temp[100];
+		strcpy(temp, filename);
+		
+		if (compare(dir[i].DIR_Name, temp))
+		{
+			found = i;
+			break;
+		}
+	}
+
+	if (found == -1)
+	{
+		printf("Error: File not found.\n");
+	}
+	
+	else
+	{
+		int cluster = dir[i].DIR_FirstClusterLow;
+		int size = dir[i].DIR_FileSize;
+		int offset = LBAToOffset(cluster);
+		
+		fseek(fp, offset, SEEK_SET);
+
+		FILE *ofp;
+		ofp = fopen(filename, "w");
+		char buff[512];
+		
+		if (size < 512)
+		{
+			fread(&buff[0], size, 1, fp);
+			fwrite(&buff[0], size, 1, ofp);
+		}
+
+		if (size > 512)
+		{
+			fread(&buff[0], 512, 1, fp);
+			fwrite(&buff[0], 512, 1, ofp);
+			size = size - 512;
+
+			while (size > 0)
+			{
+				cluster = NextLB(cluster);
+				offset = LBAToOffset(cluster);
+				fseek(fp, offset, SEEK_SET);
+				
+				fread(&buff[0], 512, 1, fp);
+				fread(&buff[0], 512, 1, ofp);
+				size = size - 512;
+			}
+		}
+		fclose(ofp);
+	}
+}
+
+void put(char* filename)
+{
+	FILE *ofp;
+	ofp = fopen(filename, "r");
+
+	if (ofp == NULL)
+	{
+		printf("Error: File not found.\n");
+	}
+
+	else
+	{
+		int last_entry = sizeof(dir)/sizeof(dir[0]);
+		int cluster = dir[last_entry].DIR_FirstClusterLow;
+		int size = dir[last_entry].DIR_FileSize;
+		int offset = LBAToOffset(cluster);
+		
+		fseek(fp, offset, SEEK_SET);
+		char buff[512];
+		
+		if (size < 512)
+		{
+			fread(&buff[0], size, 1, ofp);
+			fwrite(&buff[0], size, 1, fp);
+		}
+
+		if (size > 512)
+		{
+			fread(&buff[0], 512, 1, ofp);
+			fwrite(&buff[0], 512, 1, fp);
+			size = size - 512;
+
+			while (size > 0)
+			{
+				cluster = NextLB(cluster);
+				offset = LBAToOffset(cluster);
+				fseek(fp, offset, SEEK_SET);
+				
+				fread(&buff[0], 512, 1, ofp);
+				fread(&buff[0], 512, 1, fp);
+				size = size - 512;
+			}
+		}
+		fclose(ofp);
+	}
+}
 
 int main()
 {
@@ -306,6 +414,7 @@ int main()
 
 			if (!strcmp(token[0], "exit") || !strcmp(token[0], "quit"))
 			{
+				fclose(fp);
 				exit(0);
 			}	
 
@@ -349,7 +458,23 @@ int main()
 				{
 					stat(token[1]);
 				}	
-			}	
+			}
+
+			if (!strcmp(token[0], "get"))
+			{
+				if (token[1] != NULL)
+				{
+					get(token[1]);
+				}
+			}
+
+			if (!strcmp(token[0], "put"))
+			{
+				if (token[1] != NULL)
+				{
+					put(token[1]);
+				}
+			}
 		}
 		free( working_root );
   }
