@@ -447,105 +447,105 @@ int main()
         token_count++;
     }
 
-		if (token[0] != NULL)
+	if (token[0] != NULL)
+	{
+		if (!strcmp(token[0], "open"))
 		{
-			if (!strcmp(token[0], "open"))
+			if (token[1] == NULL)
 			{
-				if (token[1] == NULL)
-				{
-					printf("Specify a file to open.\n\n");
-				}	
-
-				else
-				{
-					open_file(token[1]);
-				}	
-			}
-
-			if (!strcmp(token[0], "close"))
-			{
-				close_file();
-				continue;
+				printf("Specify a file to open.\n\n");
 			}	
 
-			if (!strcmp(token[0], "exit") || !strcmp(token[0], "quit"))
+			else
 			{
-				if (check == 1)
+				open_file(token[1]);
+			}	
+		}
+
+		if (!strcmp(token[0], "close"))
+		{
+			close_file();
+			continue;
+		}	
+
+		if (!strcmp(token[0], "exit") || !strcmp(token[0], "quit"))
+		{
+			if (check == 1)
+			{
+				fclose(fp);
+			}
+			exit(0);
+		}	
+
+		if (must == 1)
+		{
+			printf("Error: File system image must be opened first.\n");
+			continue;
+		}
+
+		if (!strcmp(token[0], "info"))
+		{
+			printf("\t\t HEX  ||  DEC\n");
+			printf("BPB_BytsPerSec: %4x  || %4d\n", BPB_BytsPerSec, BPB_BytsPerSec);
+			printf("BPB_SecPerClus: %4x  || %4d\n", BPB_SecPerClus, BPB_SecPerClus);
+			printf("BPB_RsvdSecCnt: %4x  || %4d\n", BPB_RsvdSecCnt, BPB_RsvdSecCnt);
+			printf("BPB_NumFATs: %7x  || %4d\n", BPB_NumFATs, BPB_NumFATs);
+			printf("BPB_FATSz32: %7x  || %4d\n\n", BPB_FATSz32, BPB_FATSz32);
+		}	
+
+		if (!strcmp(token[0], "ls"))
+		{
+			ls();
+		}
+
+		if (!strcmp(token[0], "cd"))
+		{
+			if (token[1] != NULL)
+			{	
+				char* new_dir = strtok(token[1], "/"); // Handles relative paths through string tokenization.
+				cd(new_dir);
+				while ((new_dir = strtok(NULL, "/")))
 				{
-					fclose(fp);
-				}
-				exit(0);
-			}	
-
-			if (must == 1)
-			{
-				printf("Error: File system image must be opened first.\n");
-				continue;
-			}
-
-			if (!strcmp(token[0], "info"))
-			{
-				printf("\t\t HEX  ||  DEC\n");
-				printf("BPB_BytsPerSec: %4x  || %4d\n", BPB_BytsPerSec, BPB_BytsPerSec);
-				printf("BPB_SecPerClus: %4x  || %4d\n", BPB_SecPerClus, BPB_SecPerClus);
-				printf("BPB_RsvdSecCnt: %4x  || %4d\n", BPB_RsvdSecCnt, BPB_RsvdSecCnt);
-				printf("BPB_NumFATs: %7x  || %4d\n", BPB_NumFATs, BPB_NumFATs);
-				printf("BPB_FATSz32: %7x  || %4d\n\n", BPB_FATSz32, BPB_FATSz32);
-			}	
-
-			if (!strcmp(token[0], "ls"))
-			{
-				ls();
-			}
-
-			if (!strcmp(token[0], "cd"))
-			{
-				if (token[1] != NULL)
-				{	
-					char* new_dir = strtok(token[1], "/"); // Handles relative paths through string tokenization.
 					cd(new_dir);
-					while ((new_dir = strtok(NULL, "/")))
-					{
-						cd(new_dir);
-					}
-				}	
+				}
 			}	
+		}	
 
-			if (!strcmp(token[0], "stat"))
+		if (!strcmp(token[0], "stat"))
+		{
+			if (token[1] != NULL)
 			{
-				if (token[1] != NULL)
-				{
-					stat(token[1]);
-				}	
-			}
+				stat(token[1]);
+			}	
+		}
 
-			if (!strcmp(token[0], "get"))
+		if (!strcmp(token[0], "get"))
+		{
+			if (token[1] != NULL)
 			{
-				if (token[1] != NULL)
-				{
-					get(token[1]);
-				}
-			}
-
-			if (!strcmp(token[0], "put"))
-			{
-				if (token[1] != NULL)
-				{
-					put(token[1]);
-				}
-			}
-
-			if (!strcmp(token[0], "read"))
-			{
-				if (token[1] != NULL && token[2] != NULL && token[3] != NULL)
-				{
-					int position = atoi(token[2]);
-					int bytes = atoi(token[3]);
-					read_file(token[1], position, bytes);
-				}
+				get(token[1]);
 			}
 		}
-		free( working_root );
+
+		if (!strcmp(token[0], "put"))
+		{
+			if (token[1] != NULL)
+			{
+				put(token[1]);
+			}
+		}
+
+		if (!strcmp(token[0], "read"))
+		{
+			if (token[1] != NULL && token[2] != NULL && token[3] != NULL)
+			{
+				int position = atoi(token[2]);
+				int bytes = atoi(token[3]);
+				read_file(token[1], position, bytes);
+			}
+		}
+	}
+	free( working_root );
   }
   return 0;
 }
