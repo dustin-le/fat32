@@ -106,11 +106,11 @@ void open_file(char* filename)
 
 	else
 	{
-		fp = fopen(filename, "a+");
+		fp = fopen(filename, "r");
 
 		if (fp == NULL)
 		{
-			printf("Error: File system image not found.\n\n");
+			printf("Error: File system image not found.\n");
 		}	
 		
 		else
@@ -159,6 +159,7 @@ void close_file()
 	else
 	{
 		fclose(fp);
+		memset(dir, 0, sizeof(dir));
 		check = 0;
 		must = 1;
 	}
@@ -277,6 +278,8 @@ void get(char* filename)
 // Retrieves a file from the current working directory and places it in the FAT32 image.
 void put(char* filename)
 {
+	fclose(fp);
+	fp = fopen(filename, "a+");
 	FILE *ofp;
 	ofp = fopen(filename, "r");
 
@@ -459,6 +462,7 @@ int main()
 			else
 			{
 				open_file(token[1]);
+				continue;
 			}	
 		}
 
