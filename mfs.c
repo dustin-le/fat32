@@ -454,8 +454,19 @@ int main()
 	{
 		if (!strcmp(token[0], "open"))
 		{
-			if (token[1] == NULL)
+			if (check == 1)
 			{
+				printf("Error: File system image already open.\n");
+			}
+
+			else if (token[1] == NULL)
+			{
+				if (must == 1)
+				{
+					printf("Error: File system image must be opened first.\n");
+					continue;
+				}
+
 				printf("Specify a file to open.\n\n");
 			}	
 
