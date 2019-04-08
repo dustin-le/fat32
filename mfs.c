@@ -1,3 +1,8 @@
+/*
+  Name: Dustin Le
+  ID: 1001130689
+*/
+
 #define _GNU_SOURCE
 
 #include <ctype.h>
