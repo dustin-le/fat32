@@ -372,7 +372,10 @@ void cd(char* directory)
 	{
 		for (i = 0; i < 16; i++)
 		{
-			if (compare(dir[i].DIR_Name, directory) && dir[i].DIR_Attr != 0x20)
+			char temp[100];
+			strcpy(temp, directory);
+
+			if (compare(dir[i].DIR_Name, temp) && dir[i].DIR_Attr != 0x20)
 			{
 				fseek(fp, LBAToOffset(dir[i].DIR_FirstClusterLow), SEEK_SET);
 				fread(&dir[0], sizeof(struct DirectoryEntry), 16, fp);
@@ -389,7 +392,10 @@ void read_file(char* filename, int position, int bytes)
 
 	for (i = 0; i < 16; i++)
 	{
-		if (compare(dir[i].DIR_Name, filename))
+		char temp[100];
+		strcpy(temp, filename);
+
+		if (compare(dir[i].DIR_Name, temp))
 		{
 			// Only show files that are read only (0x01), subdirectories (0x20), and . (0x30). Does not show files that start with 0xffffffe5, as those are deleted.
 			if ((dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 || dir[i].DIR_Attr == 0x30) && dir[i].DIR_Name[0] != 0xffffffe5) 
@@ -402,7 +408,6 @@ void read_file(char* filename, int position, int bytes)
 					break;
 			}
 		}
-		
 	}
 }
 
