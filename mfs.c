@@ -283,33 +283,43 @@ void get(char* filename)
 // Retrieves a file from the current working directory and places it in the FAT32 image.
 void put(char* filename)
 {
-	fclose(fp);
-	fp = fopen(filename, "a+");
-	FILE *ofp;
-	ofp = fopen(filename, "r");
+	int found = -1;
+	int i;
 
-	if (ofp == NULL)
+	for (i = 0; i < 16; i++)
 	{
-		printf("Error: File not found.\n");
+		if (dir[i].DIR_Attr == 0x22)
+		{
+			found = i; // Index of the file in the FAT32 image.
+			break;
+		}
 	}
 
+	if (found == -1)
+	{
+		printf("Error: Not enough space in directory.\n");
+	}
+	
 	else
 	{
-		// Same logic as the get function, just with the file pointers switched around.
-		int last_entry = sizeof(dir)/sizeof(dir[0]);
-		int cluster = dir[last_entry].DIR_FirstClusterLow;
-		int size = dir[last_entry].DIR_FileSize;
+		int cluster = dir[i].DIR_FirstClusterLow;
+		int size = dir[i].DIR_FileSize;
 		int offset = LBAToOffset(cluster);
 		
 		fseek(fp, offset, SEEK_SET);
+
+		FILE *ofp;
+		ofp = fopen(filename, "r");
 		char buff[512];
 		
+		// If the file is less than 512, simply write it to the current working directory.
 		if (size < 512)
 		{
 			fread(&buff[0], size, 1, ofp);
 			fwrite(&buff[0], size, 1, fp);
 		}
 
+		// If the file size is greater than 512, keep subtracting 512 and writing to the current working directory until the size is < 0.
 		if (size > 512)
 		{
 			fread(&buff[0], 512, 1, ofp);
@@ -327,6 +337,9 @@ void put(char* filename)
 				size = size - 512;
 			}
 		}
+
+		dir[found].DIR_Attr = 0x10;
+		strcpy(dir[found].DIR_Name,filename);
 		fclose(ofp);
 	}
 }
