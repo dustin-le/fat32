@@ -23,3 +23,7 @@ User space shell that interprets a FAT32 file system image.
 * What happens when you "delete" a file.
 * How directories are structured and the methods in maneuvering them.
 * How to extract files from and inject files into the FAT32 image file.
+
+## Known Bugs
+* Put adds file to the directory but can not stat it or read it.
+* Get results in only a 512 byte file if the file is larger than 512 bytes. 
