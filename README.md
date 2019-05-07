@@ -1,7 +1,7 @@
 # FAT32 File System
 
 ## Overview
-User space shell that interprets a FAT32 file system image.
+User space shell that interprets and interacts with a FAT32 file system image.
 
 ## Functionality
 * Opens FAT32 image.
